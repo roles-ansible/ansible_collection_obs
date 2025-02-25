@@ -1,7 +1,6 @@
 ---
 lufs_exporter__pip_requirements:
   - 'asyncio'
-  - 'argparse'
   - 'simpleobsws'
   - 'prometheus_client'
 

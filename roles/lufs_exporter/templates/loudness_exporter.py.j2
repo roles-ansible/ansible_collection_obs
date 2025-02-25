@@ -141,7 +141,7 @@ def shutdown_handler(loop):
 def main():
     """Main function to start monitoring and Prometheus server."""
     args = parse_arguments()
-    start_http_server(args.port)
+    start_http_server(args.port, addr='127.0.0.1')
     logger.info("Starting Prometheus metrics server on port %s", args.port)
 
     loop = asyncio.get_event_loop()
