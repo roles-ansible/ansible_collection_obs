@@ -23,3 +23,8 @@
     owner: "{{ lufs_exporter__user }}"
     group: "{{ lufs_exporter__group }}"
     dest: "{{ lufs_exporter__home }}/loudness_exporter.py"
+    mode: '0750'
+
+- name: Create Systemd Service
+  ansible.builtin.include_tasks:
+    files: 'systemd.yml'

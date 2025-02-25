@@ -1,0 +1,26 @@
+---
+- name: "Setup systemd service"
+  become: true
+  when: ansible_os_family == "Debian"
+  ansible.builtin.template:
+    src: 'templates/loudness_exporter.service.j2'
+    dest: '/lib/systemd/system/templates/loudness_exporter.service'
+    owner: 'root'
+    group: 'root'
+    mode: '0644'
+  notify: 'systemctl restart loudness_exporter.service'
+
+- name: "Reload systemd"
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  notify: 'systemctl restart loudness_exporter.service'
+
+- name: "Start and enable loudness_exporter.service"
+  become: true
+  ansible.builtin.systemd_service:
+    name: 'loudness_exporter.service'
+    state: started
+    enabled: true
+  when: ansible_service_mgr == "systemd"
+  notify: 'systemctl restart loudness_exporter.service'

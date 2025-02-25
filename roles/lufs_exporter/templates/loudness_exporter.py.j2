@@ -1,16 +1,15 @@
-#! {{ lufs_exporter__home }}/bin/python3
+#! {{ lufs_exporter__home }}/venv/bin/python3
 # -*- coding: utf-8 -*-
 # {{ ansible_managed | comment }}
 """
 Prometheus Exporter for OBS Loudness Monitoring (Supports Multiple OBS Instances).
 """
 
+import re
+import signal
 import asyncio
 import argparse
 import simpleobsws
-import re
-import signal
-import sys
 from prometheus_client import start_http_server, Gauge
 
 # Dictionary to store Prometheus metrics for each OBS instance
@@ -44,11 +43,11 @@ class OBSLoudnessMonitor:
 
         # Create Prometheus metrics for all loudness values
         self.metrics = {
-            'integrated': Gauge(f'obs_loudness_integrated_{sanitized_host}', 'Integrated loudness in LUFS'),
-            'momentary': Gauge(f'obs_loudness_momentary_{sanitized_host}', 'Momentary loudness in LUFS'),
-            'peak': Gauge(f'obs_loudness_peak_{sanitized_host}', 'Peak loudness in LUFS'),
-            'range': Gauge(f'obs_loudness_range_{sanitized_host}', 'Loudness range in LUFS'),
-            'short': Gauge(f'obs_loudness_short_{sanitized_host}', 'Short-term loudness in LUFS')
+            'integrated': Gauge(f'obs_loudness_integrated_{sanitized_host}', 'Integrated LUFS'),
+            'momentary': Gauge(f'obs_loudness_momentary_{sanitized_host}', 'Momentary LUFS'),
+            'peak': Gauge(f'obs_loudness_peak_{sanitized_host}', 'Peak LUFS'),
+            'range': Gauge(f'obs_loudness_range_{sanitized_host}', 'Loudness LUFS'),
+            'short': Gauge(f'obs_loudness_short_{sanitized_host}', 'Short-term LUFS')
         }
 
     async def connect(self):
@@ -63,7 +62,7 @@ class OBSLoudnessMonitor:
             await self.obsws.connect()
             await self.obsws.wait_until_identified()
             self.connected = True
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             print(f'[ERROR] Connection to {self.host} failed: {e}. Retrying later.')
             self.connected = False
 
@@ -76,8 +75,8 @@ class OBSLoudnessMonitor:
             try:
                 res = await self.obsws.call(simpleobsws.Request(req, data))
                 return res.responseData if res.ok() else None
-            except Exception as e:
-                print(f'[ERROR] WebSocket error on {self.host}: {e}')
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                print(f'[ERROR] Unexpected error on {self.host}: {e}')
                 await self.disconnect()
         return None
 
@@ -140,4 +139,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
