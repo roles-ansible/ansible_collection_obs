@@ -15,4 +15,11 @@
 - name: Create loudness python venv
   ansible.builtin.include_tasks:
     file: 'python_venv.yml'
-# templates/loudness_exporter.py.j2
+
+- name: Create Loudness script
+  become: true
+  ansible.builtin.template:
+    src: 'templates/loudness_exporter.py.j2'
+    owner: "{{ lufs_exporter__user }}"
+    group: "{{ lufs_exporter__group }}"
+    dest: "{{ lufs_exporter__home }}/loudness_exporter.py"
