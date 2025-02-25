@@ -9,8 +9,9 @@ User={{ lufs_exporter__user }}
 Group={{ lufs_exporter__group }}
 WorkingDirectory={{ lufs_exporter__home }}
 ExecStart={{ lufs_exporter__home }}/loudness_exporter.py \
-    --obsws "{{ ufs_exporter__obsws }}" {% if lufs_exporter__obsws_passwd is defined and lufs_exporter__obsws_passwd is not empty %}\
-    --obsws-passwd {{ lufs_exporter__obsws_passwd }}{% endif %}
+    --obsws "{{ lufs_exporter__obsws }}" {% if lufs_exporter__obsws_passwd is defined and lufs_exporter__obsws_passwd != "" %}\
+    --obsws-passwd "{{ lufs_exporter__obsws_passwd }}"
+{% endif %}
 Restart=always
 RestartSec=10s
 

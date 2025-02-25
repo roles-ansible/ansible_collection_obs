@@ -7,6 +7,8 @@ Prometheus Exporter for OBS Loudness Monitoring (Supports Multiple OBS Instances
 
 import re
 import signal
+import logging
+import sys
 import asyncio
 import argparse
 import simpleobsws
@@ -14,6 +16,17 @@ from prometheus_client import start_http_server, Gauge
 
 # Dictionary to store Prometheus metrics for each OBS instance
 g_loudness = {}
+
+# Logger konfigurieren
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 def sanitize_metric_name(name: str) -> str:
     """Sanitize hostnames to be valid Prometheus metric names."""
@@ -63,7 +76,7 @@ class OBSLoudnessMonitor:
             await self.obsws.wait_until_identified()
             self.connected = True
         except Exception as e:  # pylint: disable=broad-exception-caught
-            print(f'[ERROR] Connection to {self.host} failed: {e}. Retrying later.')
+            logger.error("Connection to %s failed: %s. Retrying later.", self.host, e)
             self.connected = False
 
     async def send_request(self, req: str, data: dict = None):
@@ -76,7 +89,7 @@ class OBSLoudnessMonitor:
                 res = await self.obsws.call(simpleobsws.Request(req, data))
                 return res.responseData if res.ok() else None
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f'[ERROR] Unexpected error on {self.host}: {e}')
+                logger.error("Unexpected error on %s: %s", self.host, e)
                 await self.disconnect()
         return None
 
@@ -103,7 +116,7 @@ class OBSLoudnessMonitor:
                 for key, value in res['responseData'].items():
                     if key in self.metrics:
                         self.metrics[key].set(value)
-                        print(f'[{self.host}] Updated metric: {key}={value:.1f} LUFS')
+                        logger.debug("[%s] Updated metric: %s=%.1f LUFS", self.host, key, value)
 
 async def run_monitors(args):
     """Start monitoring multiple OBS instances."""
@@ -114,7 +127,7 @@ async def run_monitors(args):
 
 def shutdown_handler(loop):
     """Handle graceful shutdown on SIGINT or SIGTERM."""
-    print('\n[INFO] Shutting down gracefully...')
+    logger.info('[INFO] Shutting down gracefully...')
     for task in asyncio.all_tasks(loop):
         task.cancel()
     loop.stop()
@@ -123,7 +136,7 @@ def main():
     """Main function to start monitoring and Prometheus server."""
     args = parse_arguments()
     start_http_server(args.port)
-    print(f'[INFO] Starting Prometheus metrics server on port {args.port}')
+    logger.info("Starting Prometheus metrics server on port %s", args.port)
 
     loop = asyncio.get_event_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -135,7 +148,7 @@ def main():
         pass
     finally:
         loop.close()
-        print('[INFO] Exporter stopped.')
+        logger.info('Exporter stopped.')
 
 if __name__ == '__main__':
     main()

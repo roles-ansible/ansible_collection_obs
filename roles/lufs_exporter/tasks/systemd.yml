@@ -4,7 +4,7 @@
   when: ansible_os_family == "Debian"
   ansible.builtin.template:
     src: 'templates/loudness_exporter.service.j2'
-    dest: '/lib/systemd/system/templates/loudness_exporter.service'
+    dest: '/lib/systemd/system/loudness_exporter.service'
     owner: 'root'
     group: 'root'
     mode: '0644'
