@@ -1,0 +1,143 @@
+#! /usr/bin/env python3
+# -*- coding: utf-8 -*-
+# {{ ansible_managed | comment }}
+"""
+Prometheus Exporter for OBS Loudness Monitoring (Supports Multiple OBS Instances).
+"""
+
+import asyncio
+import argparse
+import simpleobsws
+import re
+import signal
+import sys
+from prometheus_client import start_http_server, Gauge
+
+# Dictionary to store Prometheus metrics for each OBS instance
+g_loudness = {}
+
+def sanitize_metric_name(name: str) -> str:
+    """Sanitize hostnames to be valid Prometheus metric names."""
+    return re.sub(r'[^a-zA-Z0-9_]', '_', name)
+
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Prometheus Exporter for OBS Loudness Monitoring',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument('--obsws', default='127.0.0.1:4455',
+                        help='Comma-separated OBS WebSocket hosts:ports')
+    parser.add_argument('--obsws-passwd', default=None, help='OBS WebSocket password')
+    parser.add_argument('--port', type=int, default=8193, help='Port for Prometheus metrics')
+    return parser.parse_args()
+
+class OBSLoudnessMonitor:
+    """Monitors loudness levels via OBS WebSocket and exposes metrics."""
+    def __init__(self, host: str, args):
+        self.host = host
+        self.args = args
+        self.obsws = None
+        self.connected = False
+
+        sanitized_host = sanitize_metric_name(self.host)
+
+        # Create Prometheus metrics for all loudness values
+        self.metrics = {
+            'integrated': Gauge(f'obs_loudness_integrated_{sanitized_host}', 'Integrated loudness in LUFS'),
+            'momentary': Gauge(f'obs_loudness_momentary_{sanitized_host}', 'Momentary loudness in LUFS'),
+            'peak': Gauge(f'obs_loudness_peak_{sanitized_host}', 'Peak loudness in LUFS'),
+            'range': Gauge(f'obs_loudness_range_{sanitized_host}', 'Loudness range in LUFS'),
+            'short': Gauge(f'obs_loudness_short_{sanitized_host}', 'Short-term loudness in LUFS')
+        }
+
+    async def connect(self):
+        """Establish connection to OBS WebSocket."""
+        if self.connected:
+            return
+        try:
+            self.obsws = simpleobsws.WebSocketClient(
+                url=f'ws://{self.host}',
+                password=self.args.obsws_passwd
+            )
+            await self.obsws.connect()
+            await self.obsws.wait_until_identified()
+            self.connected = True
+        except Exception as e:
+            print(f'[ERROR] Connection to {self.host} failed: {e}. Retrying later.')
+            self.connected = False
+
+    async def send_request(self, req: str, data: dict = None):
+        """Send a request to OBS WebSocket and return the response."""
+        if not self.connected:
+            await self.connect()
+
+        if self.connected and self.obsws:
+            try:
+                res = await self.obsws.call(simpleobsws.Request(req, data))
+                return res.responseData if res.ok() else None
+            except Exception as e:
+                print(f'[ERROR] WebSocket error on {self.host}: {e}')
+                await self.disconnect()
+        return None
+
+    async def disconnect(self):
+        """Disconnect from OBS WebSocket."""
+        if self.obsws:
+            await self.obsws.disconnect()
+            self.obsws = None
+            self.connected = False
+
+    async def monitor_loudness(self):
+        """Continuously monitor loudness levels."""
+        while True:
+            await asyncio.sleep(1)
+            res = await self.send_request(
+                'CallVendorRequest',
+                {
+                    'vendorName': 'obs-loudness-dock',
+                    'requestType': 'get_loudness',
+                    'requestData': {}
+                }
+            )
+            if res:
+                for key, value in res['responseData'].items():
+                    if key in self.metrics:
+                        self.metrics[key].set(value)
+                        print(f'[{self.host}] Updated metric: {key}={value:.1f} LUFS')
+
+async def run_monitors(args):
+    """Start monitoring multiple OBS instances."""
+    hosts = args.obsws.split(',')
+    monitors = [OBSLoudnessMonitor(host, args) for host in hosts]
+    tasks = [monitor.monitor_loudness() for monitor in monitors]
+    await asyncio.gather(*tasks)
+
+def shutdown_handler(loop):
+    """Handle graceful shutdown on SIGINT or SIGTERM."""
+    print('\n[INFO] Shutting down gracefully...')
+    for task in asyncio.all_tasks(loop):
+        task.cancel()
+    loop.stop()
+
+def main():
+    """Main function to start monitoring and Prometheus server."""
+    args = parse_arguments()
+    start_http_server(args.port)
+    print(f'[INFO] Starting Prometheus metrics server on port {args.port}')
+
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, lambda: shutdown_handler(loop))
+
+    try:
+        loop.run_until_complete(run_monitors(args))
+    except asyncio.CancelledError:
+        pass
+    finally:
+        loop.close()
+        print('[INFO] Exporter stopped.')
+
+if __name__ == '__main__':
+    main()
+

@@ -1,0 +1,17 @@
+---
+- name: Create group for lufs exporter
+  become: true
+  ansible.builtin.group:
+    name: "{{ lufs_exporter__group }}"
+    state: present
+
+- name: Add user for pretix with disabled password
+  become: true
+  ansible.builtin.user:
+    name: "{{ lufs_exporter__user }}"
+    home: "{{ lufs_exporter__home }}"
+    group: "{{ lufs_exporter__group }}"
+    password: '!'
+    create_home: true
+    system: true
+    shell: '/bin/bash'

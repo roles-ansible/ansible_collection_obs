@@ -3,3 +3,16 @@
   ansible.builtin.include_tasks:
     file: 'versioncheck.yml'
   when: submodules_versioncheck | bool
+
+- name: Create User for loudness exporter
+  ansible.builtin.include_tasks:
+    file: 'user.yml'
+
+- name: Install Packages for lufs exporter
+  ansible.builtin.include_tasks:
+    file: 'packages.yml'
+
+- name: Create loudness python venv
+  ansible.builtin.include_tasks:
+    file: 'python_venv.yml'
+# templates/loudness_exporter.py.j2

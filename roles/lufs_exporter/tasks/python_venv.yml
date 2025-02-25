@@ -1,0 +1,8 @@
+---
+- name: Make sure python venv is available
+  become: true
+  become_user: "{{ lufs_exporter__user }}"
+  ansible.builtin.pip:
+    name: "{{ item }}"
+    virtualenv: "{{ lufs_exporter__home }}/venv"
+  loop: "{{ lufs_exporter__pip_requirements }}"

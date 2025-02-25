@@ -1,4 +1,10 @@
 ---
+lufs_exporter__pip_requirements:
+  - 'asyncio'
+  - 'argparse'
+  - 'simpleobsws'
+  - 'prometheus_client'
+
 # versionscheck
 playbook_version_number: 5
 playbook_version_path: 'l3d.obs.lufs_exporter.version'

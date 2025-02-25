@@ -1,2 +1,6 @@
 ---
+lufs_exporter__user: 'lufs_exporter'
+lufs_exporter__group: 'lufs_exporter'
+lufs_exporter__home: '/var/lib/obs_lufs_exporter'
+
 submodules_versioncheck: false
