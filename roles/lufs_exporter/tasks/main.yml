@@ -24,6 +24,7 @@
     group: "{{ lufs_exporter__group }}"
     dest: "{{ lufs_exporter__home }}/loudness_exporter.py"
     mode: '0750'
+  notify: 'systemctl restart loudness_exporter.service'
 
 - name: Create Systemd Service
   ansible.builtin.include_tasks:

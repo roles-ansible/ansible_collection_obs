@@ -60,7 +60,8 @@ class OBSLoudnessMonitor:
             'momentary': Gauge(f'obs_loudness_momentary_{sanitized_host}', 'Momentary LUFS'),
             'peak': Gauge(f'obs_loudness_peak_{sanitized_host}', 'Peak LUFS'),
             'range': Gauge(f'obs_loudness_range_{sanitized_host}', 'Loudness LUFS'),
-            'short': Gauge(f'obs_loudness_short_{sanitized_host}', 'Short-term LUFS')
+            'short': Gauge(f'obs_loudness_short_{sanitized_host}', 'Short-term LUFS'),
+            'online': Gauge(f'obs_loudness_online_{sanitized_host}', 'WebSocket Connection Status')
         }
 
     async def connect(self):
@@ -75,9 +76,11 @@ class OBSLoudnessMonitor:
             await self.obsws.connect()
             await self.obsws.wait_until_identified()
             self.connected = True
+            self.metrics['online'].set(1)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Connection to %s failed: %s. Retrying later.", self.host, e)
             self.connected = False
+            self.metrics['online'].set(0)
 
     async def send_request(self, req: str, data: dict = None):
         """Send a request to OBS WebSocket and return the response."""
@@ -90,6 +93,7 @@ class OBSLoudnessMonitor:
                 return res.responseData if res.ok() else None
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("Unexpected error on %s: %s", self.host, e)
+                self.metrics['online'].set(0)
                 await self.disconnect()
         return None
 
@@ -99,6 +103,7 @@ class OBSLoudnessMonitor:
             await self.obsws.disconnect()
             self.obsws = None
             self.connected = False
+            self.metrics['online'].set(0)
 
     async def monitor_loudness(self):
         """Continuously monitor loudness levels."""
@@ -113,6 +118,7 @@ class OBSLoudnessMonitor:
                 }
             )
             if res:
+                self.metrics['online'].set(1)  # Ensure online status stays 1 if data is received
                 for key, value in res['responseData'].items():
                     if key in self.metrics:
                         self.metrics[key].set(value)

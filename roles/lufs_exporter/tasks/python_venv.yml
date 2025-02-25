@@ -6,3 +6,4 @@
     name: "{{ item }}"
     virtualenv: "{{ lufs_exporter__home }}/venv"
   loop: "{{ lufs_exporter__pip_requirements }}"
+  notify: 'systemctl restart loudness_exporter.service'
